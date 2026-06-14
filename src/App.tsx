@@ -188,6 +188,46 @@ export default function App() {
     [images, currentName, passes]
   );
 
+  // Jump to the beginning of the adjacent non-empty time-bin (Ctrl+←/→).
+  const goBin = useCallback(
+    (dir: number) => {
+      const n = images.length;
+      if (n === 0) return;
+      const start = images[0].captureTime;
+      const binSec = binMinutes * 60;
+      const binOf = (ct: number) => Math.floor((ct - start) / binSec);
+      let i = images.findIndex((im) => im.name === currentName);
+      if (i < 0) i = 0;
+      const curBin = binOf(images[i].captureTime);
+      if (dir > 0) {
+        for (let j = i + 1; j < n; j++) {
+          if (binOf(images[j].captureTime) > curBin) {
+            setCurrentName(images[j].name);
+            return;
+          }
+        }
+        // Past the last bin: wrap to the first image of the first bin.
+        setCurrentName(images[0].name);
+      } else {
+        // Step back into an earlier bin, then to that bin's first image.
+        let j = i - 1;
+        while (j >= 0 && binOf(images[j].captureTime) >= curBin) j--;
+        if (j >= 0) {
+          const prevBin = binOf(images[j].captureTime);
+          while (j - 1 >= 0 && binOf(images[j - 1].captureTime) === prevBin) j--;
+          setCurrentName(images[j].name);
+          return;
+        }
+        // Before the first bin: wrap to the first image of the last bin.
+        const lastBin = binOf(images[n - 1].captureTime);
+        let k = n - 1;
+        while (k - 1 >= 0 && binOf(images[k - 1].captureTime) === lastBin) k--;
+        setCurrentName(images[k].name);
+      }
+    },
+    [images, currentName, binMinutes]
+  );
+
   const setStars = useCallback(
     (name: string, n: number) => {
       setRatings((prev) => {
@@ -248,6 +288,16 @@ export default function App() {
         e.preventDefault();
         return;
       }
+      if ((e.ctrlKey || e.metaKey) && e.key === "ArrowRight") {
+        goBin(1);
+        e.preventDefault();
+        return;
+      }
+      if ((e.ctrlKey || e.metaKey) && e.key === "ArrowLeft") {
+        goBin(-1);
+        e.preventDefault();
+        return;
+      }
       if (e.metaKey || e.ctrlKey || e.altKey) return;
 
       if (e.key === "?") {
@@ -282,7 +332,7 @@ export default function App() {
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [currentName, setStars, toggleReject, go, view, showHelp, zoom, copyCurrent]);
+  }, [currentName, setStars, toggleReject, go, goBin, view, showHelp, zoom, copyCurrent]);
 
   const currentRating = currentName ? ratings[currentName] : undefined;
 
