@@ -208,6 +208,7 @@ button {
   border-color: var(--current);
 }
 .hud-name {
+  margin-left: auto;
   color: var(--fg-dim);
   font-variant-numeric: tabular-nums;
 }
@@ -369,6 +370,33 @@ button {
   width: 100%;
   background: var(--accent);
   border-radius: 1px 1px 0 0;
+}
+
+/* ---- Context menu ---- */
+.ctx-menu {
+  position: fixed;
+  z-index: 90;
+  background: var(--bg-3);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 4px;
+  box-shadow: 0 6px 24px rgba(0, 0, 0, 0.5);
+  min-width: 140px;
+}
+.ctx-item {
+  display: block;
+  width: 100%;
+  text-align: left;
+  background: transparent;
+  border: 0;
+  color: var(--fg);
+  padding: 6px 10px;
+  border-radius: 4px;
+  cursor: pointer;
+}
+.ctx-item:hover {
+  background: var(--current);
+  color: #fff;
 }
 
 /* ---- Help overlay ---- */

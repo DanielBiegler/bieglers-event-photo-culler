@@ -20,6 +20,7 @@ image = { version = "0.25", default-features = false, features = ["jpeg"] }
 base64 = "0.22"
 rayon = "1"
 chrono = "0.4"
+arboard = "3"
 # Pin: brotli 8.0.3 (via tauri-codegen) uses alloc-no-stdlib 2.x itself, but
 # brotli-decompressor 5.0.2 moved to 3.x, so the two halves of brotli fail to
 # compile together. Hold the alloc crates + brotli-decompressor on the 2.x line.

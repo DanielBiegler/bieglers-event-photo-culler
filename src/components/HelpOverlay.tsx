@@ -10,12 +10,14 @@ const SHORTCUTS: [string, string][] = [
   ["Q", "Toggle 1.5× zoom"],
   ["G", "Grid view"],
   ["E", "Loupe view"],
+  ["Ctrl+C", "Copy image to clipboard"],
   ["?", "Toggle this help"],
   ["Esc", "Close help"],
 ];
 
 const MOUSE: [string, string][] = [
   ["Click image", "Toggle 1.5× zoom"],
+  ["Right-click image", "Copy image to clipboard"],
   ["Drag (zoomed)", "Pan"],
   ["Click thumbnail", "Select"],
   ["Double-click thumbnail", "Open in loupe"],

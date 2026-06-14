@@ -5,6 +5,7 @@ import {
   saveSidecar,
   pickExportPath,
   exportCsv,
+  copyImage,
 } from "./api";
 import type {
   ImageEntry,
@@ -86,6 +87,14 @@ export default function App() {
   );
 
   const filtered = useMemo(() => images.filter(passes), [images, passes]);
+  const reviewedCount = useMemo(
+    () =>
+      images.reduce((n, i) => {
+        const r = ratings[i.name];
+        return n + ((r?.stars ?? 0) > 0 || r?.reject ? 1 : 0);
+      }, 0),
+    [images, ratings]
+  );
   const currentIndex = useMemo(
     () => images.findIndex((i) => i.name === currentName),
     [images, currentName]
@@ -212,6 +221,11 @@ export default function App() {
     setZoom(false);
   }, []);
 
+  const copyCurrent = useCallback(() => {
+    const img = images.find((i) => i.name === currentName);
+    if (img) copyImage(img.path).catch(console.error);
+  }, [images, currentName]);
+
   // --- Export keepers (stars >= keeperThreshold) ---
   const onExport = useCallback(async () => {
     if (!folder) return;
@@ -228,6 +242,12 @@ export default function App() {
     const onKey = (e: KeyboardEvent) => {
       const tag = (e.target as HTMLElement)?.tagName;
       if (tag === "INPUT" || tag === "SELECT" || tag === "TEXTAREA") return;
+
+      if ((e.ctrlKey || e.metaKey) && (e.key === "c" || e.key === "C")) {
+        copyCurrent();
+        e.preventDefault();
+        return;
+      }
       if (e.metaKey || e.ctrlKey || e.altKey) return;
 
       if (e.key === "?") {
@@ -262,7 +282,7 @@ export default function App() {
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [currentName, setStars, toggleReject, go, view, showHelp, zoom]);
+  }, [currentName, setStars, toggleReject, go, view, showHelp, zoom, copyCurrent]);
 
   const currentRating = currentName ? ratings[currentName] : undefined;
 
@@ -301,6 +321,7 @@ export default function App() {
             index={currentIndex}
             zoom={zoom}
             onToggleZoom={() => setZoom((z) => !z)}
+            onCopy={copyCurrent}
           />
         ) : (
           <Grid
@@ -315,6 +336,10 @@ export default function App() {
 
       {view === "loupe" && currentName && (
         <div className="loupe-hud">
+          <span className="counts" title="Reviewed (rated or rejected) / total">
+            ✓ {reviewedCount}/{images.length} (
+            {images.length ? Math.round((reviewedCount / images.length) * 100) : 0}%)
+          </span>
           <div className="hud-stars">
             {[1, 2, 3, 4, 5].map((n) => (
               <span

@@ -91,7 +91,10 @@ export default function Toolbar(p: Props) {
       <div className="spacer" />
 
       <span className="counts">
-        {p.position} · {p.shownCount}/{p.totalCount}
+        <span title="Current image position">{p.position}</span> ·{" "}
+        <span title="Shown by current filter / total">
+          {p.shownCount}/{p.totalCount}
+        </span>
       </span>
 
       <button className="icon-btn" title="Export keeper CSV" onClick={p.onExport}>

@@ -39,6 +39,10 @@ export function exportCsv(dest: string, contents: string): Promise<void> {
   return invoke("export_csv", { dest, contents });
 }
 
+export function copyImage(path: string): Promise<void> {
+  return invoke("copy_image", { path });
+}
+
 /** Asset-protocol URL the webview can load a full-res image from. */
 export function imageSrc(path: string): string {
   return convertFileSrc(path);

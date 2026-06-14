@@ -137,6 +137,26 @@ fn export_csv(dest: String, contents: String) -> Result<(), String> {
     fs::write(&dest, contents).map_err(|e| e.to_string())
 }
 
+/// Decodes a JPEG and places it on the OS clipboard as raw RGBA image data.
+/// Runs on a blocking thread so the heavy decode never stalls the UI thread.
+#[tauri::command]
+async fn copy_image(path: String) -> Result<(), String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        let img = image::open(&path).map_err(|e| e.to_string())?.to_rgba8();
+        let (w, h) = img.dimensions();
+        let data = arboard::ImageData {
+            width: w as usize,
+            height: h as usize,
+            bytes: std::borrow::Cow::Owned(img.into_raw()),
+        };
+        arboard::Clipboard::new()
+            .and_then(|mut c| c.set_image(data))
+            .map_err(|e| e.to_string())
+    })
+    .await
+    .map_err(|e| e.to_string())?
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
@@ -145,7 +165,8 @@ pub fn run() {
             scan_folder,
             get_thumbnail,
             save_sidecar,
-            export_csv
+            export_csv,
+            copy_image
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
