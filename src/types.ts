@@ -21,8 +21,8 @@ export type RatingsMap = Record<string, Rating>;
 
 export type View = "loupe" | "grid";
 export type RejectFilter = "all" | "hide" | "only";
-/** How the star filter compares: at-least vs exactly. */
-export type StarFilterMode = "gte" | "eq";
+/** How the star filter compares: at-least, exactly, or less-than. */
+export type StarFilterMode = "gte" | "eq" | "lt";
 
 /** Persisted sidecar shape (.cull.json at the folder root). */
 export interface Sidecar {

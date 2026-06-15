@@ -57,6 +57,7 @@ export default function Toolbar(p: Props) {
         >
           <option value="gte">≥</option>
           <option value="eq">=</option>
+          <option value="lt">&lt;</option>
         </select>
         <select value={p.minStars} onChange={(e) => p.onMinStars(Number(e.target.value))}>
           <option value={0}>0★</option>

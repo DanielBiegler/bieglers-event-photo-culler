@@ -78,7 +78,14 @@ export default function App() {
       const r = ratings[img.name];
       const stars = r?.stars ?? 0;
       const reject = r?.reject ?? false;
-      if (starFilterMode === "eq" ? stars !== minStars : stars < minStars) return false;
+      if (
+        starFilterMode === "eq"
+          ? stars !== minStars
+          : starFilterMode === "lt"
+            ? stars >= minStars
+            : stars < minStars
+      )
+        return false;
       if (rejectFilter === "hide" && reject) return false;
       if (rejectFilter === "only" && !reject) return false;
       return true;
