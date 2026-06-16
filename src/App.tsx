@@ -20,6 +20,7 @@ import Loupe from "./components/Loupe";
 import Grid from "./components/Grid";
 import Timeline from "./components/Timeline";
 import HelpOverlay from "./components/HelpOverlay";
+import Toast, { type ToastMsg } from "./components/Toast";
 
 function basename(p: string): string {
   return p.split(/[\\/]/).pop() ?? p;
@@ -60,6 +61,14 @@ export default function App() {
   const [currentName, setCurrentName] = useState<string | null>(null);
   const [zoom, setZoom] = useState(false);
   const [showHelp, setShowHelp] = useState(false);
+
+  // Transient bottom-left notification (fades in/out). A new id retriggers it
+  // even when the text is identical (e.g. pressing N twice).
+  const [toast, setToast] = useState<ToastMsg | null>(null);
+  const toastId = useRef(0);
+  const notify = useCallback((text: string) => {
+    setToast({ id: ++toastId.current, text });
+  }, []);
 
   // Filters
   const [minStars, setMinStars] = useState(0);
@@ -235,31 +244,58 @@ export default function App() {
     [images, currentName, binMinutes]
   );
 
+  // Jump to the next unrated image (no stars, not rejected) to resume culling.
+  // Ignores the active filter on purpose — the point is to find work to do even
+  // when the view is filtered to picks/rejects. Scans the full list forward and
+  // wraps once; the bounded loop (at most n steps) cannot spin forever, and it
+  // reports the outcome via the notification system either way.
+  const goNextUnrated = useCallback(() => {
+    const n = images.length;
+    if (n === 0) return;
+    const i = images.findIndex((im) => im.name === currentName); // -1 → start at 0
+    for (let step = 1; step <= n; step++) {
+      const j = (i + step) % n;
+      const r = ratings[images[j].name];
+      if ((r?.stars ?? 0) === 0 && !r?.reject) {
+        setCurrentName(images[j].name);
+        setView("loupe");
+        setZoom(false);
+        notify(`Next unrated · ${images[j].name} (${j + 1}/${n})`);
+        return;
+      }
+    }
+    notify("No unrated images left — all reviewed");
+  }, [images, currentName, ratings, notify]);
+
   const setStars = useCallback(
     (name: string, n: number) => {
+      const prevStars = ratings[name]?.stars ?? 0;
       setRatings((prev) => {
         const cur = prev[name] ?? { stars: 0, reject: false };
         return { ...prev, [name]: { ...cur, stars: n } };
       });
+      // Notify only when actually clearing an existing rating (0 on a blank
+      // image is a no-op the user doesn't need to be told about).
+      if (n === 0 && prevStars > 0) notify(`Cleared rating · ${name}`);
       if (autoAdvance && n > 0 && view === "loupe" && name === currentName) go(1);
     },
-    [autoAdvance, view, currentName, go]
+    [ratings, autoAdvance, view, currentName, go, notify]
   );
 
   const toggleReject = useCallback(
     (name: string) => {
-      let nowRejected = false;
+      const nowRejected = !(ratings[name]?.reject ?? false);
       setRatings((prev) => {
         const cur = prev[name] ?? { stars: 0, reject: false };
-        nowRejected = !cur.reject;
         return { ...prev, [name]: { ...cur, reject: nowRejected } };
       });
+      if (!nowRejected) notify(`Cleared reject · ${name}`);
       if (autoAdvance && view === "loupe" && name === currentName) {
         // advance only when flagging (not when clearing) so review stays put
         setTimeout(() => nowRejected && go(1), 0);
       }
     },
-    [autoAdvance, view, currentName, go]
+    [ratings, autoAdvance, view, currentName, go, notify]
   );
 
   const jump = useCallback((name: string) => {
@@ -270,8 +306,11 @@ export default function App() {
 
   const copyCurrent = useCallback(() => {
     const img = images.find((i) => i.name === currentName);
-    if (img) copyImage(img.path).catch(console.error);
-  }, [images, currentName]);
+    if (!img) return;
+    copyImage(img.path)
+      .then(() => notify(`Copied · ${img.name}`))
+      .catch(console.error);
+  }, [images, currentName, notify]);
 
   // --- Export keepers (stars >= keeperThreshold) ---
   const onExport = useCallback(async () => {
@@ -335,11 +374,14 @@ export default function App() {
         setView("grid");
       } else if (e.key === "e" || e.key === "E") {
         setView("loupe");
+      } else if (e.key === "n" || e.key === "N") {
+        goNextUnrated();
+        e.preventDefault();
       }
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [currentName, setStars, toggleReject, go, goBin, view, showHelp, zoom, copyCurrent]);
+  }, [currentName, setStars, toggleReject, go, goBin, goNextUnrated, view, showHelp, zoom, copyCurrent]);
 
   const currentRating = currentName ? ratings[currentName] : undefined;
 
@@ -438,6 +480,8 @@ export default function App() {
           onThreshold={setKeeperThreshold}
         />
       )}
+
+      <Toast toast={toast} />
 
       {showHelp && <HelpOverlay onClose={() => setShowHelp(false)} />}
     </div>

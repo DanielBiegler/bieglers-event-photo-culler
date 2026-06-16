@@ -457,3 +457,27 @@ kbd {
   font-size: 12px;
   text-align: right;
 }
+
+/* ---- Notification toast ---- */
+/* Bottom-left, above the timeline. Deliberate exception to the global
+   no-transition rule: the higher-specificity `.toast` selector + !important
+   beats `* { transition: none !important }`, giving a gentle fade in/out. */
+.toast {
+  position: fixed;
+  left: 14px;
+  bottom: 124px;
+  z-index: 80;
+  max-width: 60%;
+  padding: 6px 12px;
+  background: rgba(0, 0, 0, 0.82);
+  color: #fff;
+  border-radius: 6px;
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.6s ease !important;
+}
+.toast.show {
+  opacity: 1;
+}
