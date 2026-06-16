@@ -21,10 +21,15 @@ Then **Open folder…** and point it at a flat folder of camera JPEGs.
 
 ## Keys
 
-`1`–`5` rate · `0` clear · `X` reject · `← / →` prev/next (filter-aware) ·
-`N` / `Shift+N` next/prev unrated · `Ctrl + ← / →` jump time-bin ·
-`Q` / click 1.5× zoom (drag to pan) · `G` / `E` grid / loupe ·
-`Ctrl+C` / right-click copy image · `?` help · `Esc` close/zoom-out.
+- `?` help
+- `← / →` prev/next (filter-aware)
+- `1`–`5` rate · `0` clear · `X` reject
+- `N` / `Shift+N` next/prev unrated
+- `Ctrl + ← / →` jump time-bin
+- `Q` / click 1.5× zoom (drag to pan)
+- `G` / `E` grid / loupe
+- `Ctrl+C` / right-click copy image
+- `Esc` close/zoom-out.
 
 ## Notes
 
