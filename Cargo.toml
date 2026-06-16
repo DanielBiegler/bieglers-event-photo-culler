@@ -1,0 +1,30 @@
+# Photo Culler — native egui desktop app (Rust). Replaces the original
+# Tauri 2 + React front-end; the Rust core logic (EXIF, thumbnails, sidecar,
+# CSV, clipboard) lives in this crate's modules. No webview, no JS toolchain.
+[package]
+name = "photo-culler"
+version = "0.2.0"
+edition = "2021"
+publish = false
+
+[dependencies]
+eframe = "0.29"          # egui + winit + glow backend
+egui = "0.29"
+image = { version = "0.25", default-features = false, features = ["jpeg"] }
+kamadak-exif = "0.5"     # imported as `exif`
+chrono = "0.4"
+rayon = "1"              # parallel folder scan
+rfd = "0.15"             # native folder + save dialogs
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"         # .cull.json sidecar + resume config
+arboard = "3"            # copy image to clipboard
+directories = "5"        # OS config dir for resume state
+
+# Decode-heavy: an un-optimized image/jpeg path is painfully slow even in dev.
+[profile.dev]
+opt-level = 1
+
+[profile.release]
+opt-level = 3
+lto = true
+codegen-units = 1

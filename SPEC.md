@@ -14,37 +14,42 @@ disk-constrained laptop, culls/rates them here, then later loads the matching
 
 ## Tech stack
 
-- **Tauri** — Rust core + web frontend, native filesystem access, small binary.
-- **Frontend:** React + TypeScript.
-- **Grid virtualization:** render only visible thumbnail cells (e.g.
-  `@tanstack/react-virtual`) — required for 500–3000 items without jank.
-- **Rust crates:** EXIF parsing (e.g. `kamadak-exif`) for capture time +
-  embedded thumbnail extraction. Full-image decode is handled by the webview.
-- **Target OS:** Linux (primary). Cross-platform comes free with Tauri but is
+- **Native egui** (Rust, `eframe` glow backend) — single binary, no webview.
+  (Originally Tauri 2 + React; rewritten to egui for performance + memory
+  determinism. See CLAUDE.md.)
+- **Grid virtualization:** render only visible rows (`egui::ScrollArea::show_rows`)
+  — required for 500–3000 items without jank.
+- **Rust crates:** `kamadak-exif` (capture time + orientation + embedded
+  thumbnail), `image` (JPEG decode), `eframe`/`egui`, `rayon`, `rfd`, `arboard`,
+  `directories`, `serde`.
+- **Target OS:** Linux (primary). Cross-platform comes free with winit but is
   not a goal.
 
 ## Decode & memory pipeline
 
 Two surfaces with deliberately different strategies. **No disk cache anywhere.**
+JPEGs are decoded off the UI thread in `loader.rs`; the UI uploads GPU textures
+it owns and explicitly evicts. EXIF orientation is applied at decode time.
 
 ### Loupe (single big image, the cull loop)
-- Webview loads the full JPEG directly via Tauri's asset protocol
-  (`convertFileSrc`) — native, GPU-accelerated browser decode.
-- Maintain a **sliding window** of ±5–8 fully decoded "fit-to-screen" images in
-  memory around the current index; evict outside the window. Cycling therefore
-  hits already-decoded frames → zero perceived latency.
+- Full JPEGs are decoded by a background worker pool and uploaded as GPU
+  textures.
+- Maintain a **sliding window** of ±`WINDOW` (≈6) full-res textures around the
+  current index; evict outside the window (`maintain_window`). Cycling hits
+  already-resident frames → zero perceived latency, and VRAM stays bounded.
 
 ### Grid (overview / navigation)
 - Rationale: a decoded 24MP image is ~96 MB in RAM (`w × h × 4`), so the grid
   must never hold full images.
 - Source thumbnails from the **embedded EXIF thumbnail** (~160×120) baked into
-  each camera JPEG — extracted in Rust in ~1 ms with no full decode. All thumbs
-  held in memory (a few MB total). No generated thumbnails, no disk cache.
+  each camera JPEG — extracted in Rust with no full decode, decoded off-thread,
+  and held as small GPU textures created on demand. No generated thumbnails, no
+  disk cache.
 - Cells are small; slight softness if enlarged is accepted.
 
 ### Zoom
-- Toggle **fit-to-screen ↔ 100%** (key `Q` / click) with pan, using the
-  already-loaded full-resolution image, for critical-focus checks.
+- Toggle **fit-to-screen ↔ 1.5×** (key `Q` / click) with pan, using the
+  already-resident full-resolution texture, for critical-focus checks.
 
 ## Metadata
 
@@ -76,7 +81,7 @@ Concise, icon-first UI that stays out of the way. No animations.
 - **Auto-advance** to next image after rating (toggleable).
 - `X` → toggle reject flag.
 - `←` / `→` → navigate previous/next.
-- `Q` → toggle fit ↔ 100% zoom; drag to pan when zoomed.
+- `Q` → toggle fit ↔ 1.5× zoom; drag to pan when zoomed.
 - `G` → grid view; `E` → loupe view (proposed; adjustable).
 - Filtering: by star threshold (e.g. 3★+) and by flag (all / picks / rejects).
 

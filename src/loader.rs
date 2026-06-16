@@ -83,7 +83,7 @@ fn spawn_pool(n: usize, out_tx: Sender<Loaded>, kind: Kind) -> Sender<Job> {
 /// Rotate/flip the decoded image per its EXIF orientation tag — the step the
 /// webview does for free and a native decode skips. Most cameras only ever
 /// emit 1/3/6/8, but we handle the mirrored 2/4/5/7 cases too.
-fn apply_orientation(img: &mut image::DynamicImage, orientation: u16) {
+pub fn apply_orientation(img: &mut image::DynamicImage, orientation: u16) {
     *img = match orientation {
         2 => img.fliph(),
         3 => img.rotate180(),
