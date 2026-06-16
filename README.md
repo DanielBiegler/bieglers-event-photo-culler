@@ -1,3 +1,6 @@
+> [!WARNING]
+> This is a work in progress.
+
 # Photo Culler
 
 A native desktop app for fast event-photo culling: rate (1–5★) / reject JPEGs,
