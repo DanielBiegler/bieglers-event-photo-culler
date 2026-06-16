@@ -24,7 +24,16 @@ use persist::ResumeConfig;
 use scan::Entry;
 use std::collections::{HashMap, HashSet};
 use std::path::PathBuf;
+use std::sync::mpsc::{channel, Receiver, Sender};
 use std::time::{Duration, Instant};
+
+/// Native file dialogs are blocking, so they run on a background thread and
+/// send their result back here (`None` = cancelled) to be handled on the UI
+/// thread — keeping the event loop responsive while a dialog is open.
+enum DialogResult {
+    Open(Option<PathBuf>),
+    Export(Option<PathBuf>),
+}
 
 const WINDOW: usize = 6; // ±N full-res frames kept resident around the current one
 const CELL: Vec2 = Vec2::new(176.0, 132.0);
@@ -90,11 +99,17 @@ struct App {
     show_help: bool,
     toast: Option<(String, Instant)>, // transient bottom-left notification
     grid_prev_current: usize,         // detect external current change → scroll grid
+
+    // Off-thread native file dialogs.
+    dialog_tx: Sender<DialogResult>,
+    dialog_rx: Receiver<DialogResult>,
+    dialogs_open: u32,
 }
 
 impl App {
     fn new() -> Self {
         let config = ResumeConfig::load();
+        let (dialog_tx, dialog_rx) = channel();
         let mut app = Self {
             entries: Vec::new(),
             loader: Loader::new(),
@@ -120,6 +135,9 @@ impl App {
             show_help: false,
             toast: None,
             grid_prev_current: usize::MAX,
+            dialog_tx,
+            dialog_rx,
+            dialogs_open: 0,
         };
         // Resume into the last folder if it still exists.
         if let Some(last) = app.config.last_folder.clone() {
@@ -517,6 +535,15 @@ impl eframe::App for App {
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
         self.drain(ctx);
 
+        // Apply any finished file-dialog results; keep polling while one is open
+        // (the result arrives with no UI event, so nudge the reactive loop).
+        while let Ok(result) = self.dialog_rx.try_recv() {
+            self.finish_dialog(result);
+        }
+        if self.dialogs_open > 0 {
+            ctx.request_repaint_after(Duration::from_millis(50));
+        }
+
         self.handle_keys(ctx);
         self.maintain_window();
 
@@ -861,7 +888,16 @@ impl App {
         (0..self.entries.len()).filter(|&i| self.passes_idx(i)).count()
     }
 
-    /// Export keepers (stars ≥ keeper threshold) to a CSV chosen via a dialog.
+    /// Open the native folder picker on a background thread (it blocks).
+    fn open_folder_dialog(&mut self) {
+        let tx = self.dialog_tx.clone();
+        self.dialogs_open += 1;
+        std::thread::spawn(move || {
+            let _ = tx.send(DialogResult::Open(rfd::FileDialog::new().pick_folder()));
+        });
+    }
+
+    /// Pick a destination for the keeper CSV on a background thread.
     fn export_keepers(&mut self) {
         let Some(folder) = self.folder.clone() else {
             return;
@@ -870,13 +906,28 @@ impl App {
             "{}-keepers.csv",
             folder.file_name().map(|n| n.to_string_lossy().to_string()).unwrap_or_default()
         );
-        if let Some(dest) =
-            rfd::FileDialog::new().set_file_name(default).add_filter("CSV", &["csv"]).save_file()
-        {
-            match export::export_keepers(&dest, &self.entries, &self.ratings, self.threshold) {
-                Ok(()) => self.notify(format!("Exported keepers ≥ {}★", self.threshold)),
-                Err(e) => self.notify(format!("Export failed: {e}")),
+        let tx = self.dialog_tx.clone();
+        self.dialogs_open += 1;
+        std::thread::spawn(move || {
+            let dest =
+                rfd::FileDialog::new().set_file_name(default).add_filter("CSV", &["csv"]).save_file();
+            let _ = tx.send(DialogResult::Export(dest));
+        });
+    }
+
+    /// Handle a finished dialog (called on the UI thread).
+    fn finish_dialog(&mut self, result: DialogResult) {
+        self.dialogs_open = self.dialogs_open.saturating_sub(1);
+        match result {
+            DialogResult::Open(Some(dir)) => self.open(dir),
+            DialogResult::Open(None) => {}
+            DialogResult::Export(Some(dest)) => {
+                match export::export_keepers(&dest, &self.entries, &self.ratings, self.threshold) {
+                    Ok(()) => self.notify(format!("Exported keepers ≥ {}★", self.threshold)),
+                    Err(e) => self.notify(format!("Export failed: {e}")),
+                }
             }
+            DialogResult::Export(None) => {}
         }
     }
 
@@ -884,9 +935,7 @@ impl App {
         let icon = |s: &str| egui::RichText::new(s).size(18.0);
         ui.horizontal(|ui| {
             if ui.button(icon(IC_OPEN)).on_hover_text("Open folder").clicked() {
-                if let Some(dir) = rfd::FileDialog::new().pick_folder() {
-                    self.open(dir);
-                }
+                self.open_folder_dialog();
             }
             let folder_name = self
                 .folder
