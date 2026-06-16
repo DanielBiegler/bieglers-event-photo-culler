@@ -305,7 +305,7 @@ button {
 .timeline-ready {
   display: flex;
   gap: 1px;
-  height: 7px;
+  height: 11px;
   min-width: 0;
   overflow: hidden;
 }
@@ -315,6 +315,7 @@ button {
   display: flex;
   align-items: center;
   justify-content: center;
+  overflow: hidden;
 }
 .tl-ready {
   width: 5px;
@@ -324,9 +325,16 @@ button {
 .tl-ready.done {
   background: #5bbf6a;
 }
-.tl-ready.pending {
+.tl-ready.none {
   background: transparent;
   border: 1px solid var(--fg-dim);
+}
+.tl-pct {
+  font-size: 10px;
+  line-height: 1;
+  color: var(--fg-dim);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
 }
 .timeline-bars {
   flex: 1;

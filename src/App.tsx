@@ -246,26 +246,31 @@ export default function App() {
 
   // Jump to the next unrated image (no stars, not rejected) to resume culling.
   // Ignores the active filter on purpose — the point is to find work to do even
-  // when the view is filtered to picks/rejects. Scans the full list forward and
-  // wraps once; the bounded loop (at most n steps) cannot spin forever, and it
-  // reports the outcome via the notification system either way.
-  const goNextUnrated = useCallback(() => {
-    const n = images.length;
-    if (n === 0) return;
-    const i = images.findIndex((im) => im.name === currentName); // -1 → start at 0
-    for (let step = 1; step <= n; step++) {
-      const j = (i + step) % n;
-      const r = ratings[images[j].name];
-      if ((r?.stars ?? 0) === 0 && !r?.reject) {
-        setCurrentName(images[j].name);
-        setView("loupe");
-        setZoom(false);
-        notify(`Next unrated · ${images[j].name} (${j + 1}/${n})`);
-        return;
+  // when the view is filtered to picks/rejects. Scans the full list in `dir`
+  // (+1 forward, -1 backward) and wraps once; the bounded loop (at most n steps)
+  // cannot spin forever, and it reports the outcome via the notification system
+  // either way.
+  const goNextUnrated = useCallback(
+    (dir: 1 | -1 = 1) => {
+      const n = images.length;
+      if (n === 0) return;
+      const i = images.findIndex((im) => im.name === currentName); // -1 → start at 0
+      for (let step = 1; step <= n; step++) {
+        const j = (((i + dir * step) % n) + n) % n;
+        const r = ratings[images[j].name];
+        if ((r?.stars ?? 0) === 0 && !r?.reject) {
+          setCurrentName(images[j].name);
+          setView("loupe");
+          setZoom(false);
+          const label = dir === 1 ? "Next unrated" : "Prev unrated";
+          notify(`${label} · ${images[j].name} (${j + 1}/${n})`);
+          return;
+        }
       }
-    }
-    notify("No unrated images left — all reviewed");
-  }, [images, currentName, ratings, notify]);
+      notify("No unrated images left — all reviewed");
+    },
+    [images, currentName, ratings, notify]
+  );
 
   const setStars = useCallback(
     (name: string, n: number) => {
@@ -375,7 +380,7 @@ export default function App() {
       } else if (e.key === "e" || e.key === "E") {
         setView("loupe");
       } else if (e.key === "n" || e.key === "N") {
-        goNextUnrated();
+        goNextUnrated(e.shiftKey ? -1 : 1);
         e.preventDefault();
       }
     };

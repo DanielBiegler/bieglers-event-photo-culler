@@ -8,6 +8,7 @@ const SHORTCUTS: [string, string][] = [
   ["X", "Toggle reject"],
   ["← / →", "Previous / next (wraps around)"],
   ["N", "Next unrated image (resume culling)"],
+  ["Shift + N", "Previous unrated image (seek backward)"],
   ["Ctrl + ← / →", "Jump to previous / next time-bin (wraps)"],
   ["Q", "Toggle 1.5× zoom"],
   ["G", "Grid view"],

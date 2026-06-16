@@ -96,13 +96,30 @@ export default function Timeline({
         </label>
       </div>
       <div className="timeline-plot">
-        {/* Ready strip: solid dot = every image in the bin is rated/rejected. */}
+        {/* Ready strip: green dot = all rated, gray dot = none rated, else the
+            count of images in the bin still left to rate/reject. */}
         <div className="timeline-ready">
           {bins.map((b, i) => {
-            const ready = b.total > 0 && b.handled === b.total;
+            if (b.total === 0) return <div key={i} className="tl-rcell" />;
+            const left = b.total - b.handled;
+            const title = `${fmt(i)} — ${b.handled}/${b.total} reviewed (${left} left)`;
+            if (b.handled === 0) {
+              return (
+                <div key={i} className="tl-rcell" title={title}>
+                  <span className="tl-ready none" />
+                </div>
+              );
+            }
+            if (left === 0) {
+              return (
+                <div key={i} className="tl-rcell" title={title}>
+                  <span className="tl-ready done" />
+                </div>
+              );
+            }
             return (
-              <div key={i} className="tl-rcell">
-                {b.total > 0 && <span className={`tl-ready ${ready ? "done" : "pending"}`} />}
+              <div key={i} className="tl-rcell" title={title}>
+                <span className="tl-pct">{left}</span>
               </div>
             );
           })}
