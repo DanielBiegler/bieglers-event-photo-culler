@@ -55,6 +55,7 @@ const SHORTCUTS: &[(&str, &str)] = &[
     ("Ctrl + C / right-click", "Copy image to clipboard"),
     ("?", "Toggle this help"),
     ("Esc", "Close help / zoom out"),
+    ("Ctrl + Q", "Quit"),
 ];
 
 // Lucide icon glyphs (private-use codepoints baked into assets/lucide.ttf).
@@ -312,6 +313,7 @@ impl App {
         let (mut toggle_reject, mut n_key, mut shift) = (false, false, false);
         let (mut esc, mut help, mut copy) = (false, false, false);
         let (mut bin_left, mut bin_right) = (false, false);
+        let mut quit = false;
         let mut set_star: Option<u8> = None;
         ctx.input(|i| {
             let ctrl = i.modifiers.command || i.modifiers.ctrl;
@@ -329,6 +331,7 @@ impl App {
                 copy = i.key_pressed(egui::Key::C);
                 bin_left = i.key_pressed(egui::Key::ArrowLeft);
                 bin_right = i.key_pressed(egui::Key::ArrowRight);
+                quit = i.key_pressed(egui::Key::Q);
             } else {
                 left = i.key_pressed(egui::Key::ArrowLeft);
                 right = i.key_pressed(egui::Key::ArrowRight);
@@ -353,6 +356,11 @@ impl App {
         });
 
         let n = self.entries.len();
+
+        // Ctrl+Q quits; `on_exit` still runs, flushing the debounced sidecar.
+        if quit {
+            ctx.send_viewport_cmd(egui::ViewportCommand::Close);
+        }
 
         // Copy + bin-jump work even while the help overlay is open.
         if copy {
@@ -662,15 +670,26 @@ impl App {
         let avail_w = ui.available_width();
         let cols = (((avail_w + spacing) / (CELL.x + spacing)).floor() as usize).max(1);
         let rows = filtered.len().div_ceil(cols);
-        let row_h = CELL.y + spacing;
+        // `show_rows` wants the row height WITHOUT spacing and adds `item_spacing.y`
+        // itself; the on-screen pitch is therefore `CELL.y + spacing`. Use that
+        // pitch for the scroll math so it matches `show_rows`' internal layout.
+        let row_pitch = CELL.y + spacing;
         let current = self.current;
 
         // When the selection changed from outside the grid (loupe nav, arrow
-        // keys, timeline jump), scroll so the current row is visible.
+        // keys, timeline jump), scroll so the current row is centered in the
+        // viewport (clamped to the valid range) — pinning it to the top edge
+        // makes every keypress yank the grid and is easy to lose track of.
+        let viewport_h = ui.available_height();
+        let content_h = rows as f32 * row_pitch - spacing;
+        let max_offset = (content_h - viewport_h).max(0.0);
         let scroll_to = (current != self.grid_prev_current)
             .then(|| filtered.iter().position(|&i| i == current))
             .flatten()
-            .map(|p| (p / cols) as f32 * row_h);
+            .map(|p| {
+                let row_top = (p / cols) as f32 * row_pitch;
+                (row_top - (viewport_h - row_pitch) * 0.5).clamp(0.0, max_offset)
+            });
 
         let mut area = egui::ScrollArea::vertical().auto_shrink([false, false]);
         if let Some(offset) = scroll_to {
@@ -678,7 +697,7 @@ impl App {
         }
         area.show_rows(
             ui,
-            row_h,
+            CELL.y,
             rows,
             |ui, row_range| {
                 for row in row_range {
@@ -735,7 +754,12 @@ impl App {
                                 );
                             }
                             if idx == current {
-                                painter.rect_stroke(rect, 2.0, Stroke::new(2.0, ACCENT));
+                                // `painter_at(rect)` clips to `rect`, and egui centers
+                                // the stroke on the edge — so an edge-aligned ring loses
+                                // its outer half to the clip and nearly vanishes. Inset
+                                // it so the full stroke stays inside and stays visible.
+                                let ring = rect.shrink(1.5);
+                                painter.rect_stroke(ring, 2.0, Stroke::new(3.0, ACCENT));
                             }
 
                             // Single-click selects (stay in grid); double-click
@@ -1121,13 +1145,11 @@ impl App {
                 painter.rect_filled(fill, 1.0, ACCENT);
             }
 
-            // Ready strip: gray ring = none rated, green dot = all rated, else
-            // the count still left to rate (a partial fill ring when too narrow
-            // for text — adaptive rendering egui handles trivially).
+            // Ready strip: green dot = all rated, else the count still left to
+            // rate (a partial fill ring when too narrow for text — adaptive
+            // rendering egui handles trivially).
             let c = Pos2::new(cx, strip_y);
-            if b.handled == 0 {
-                painter.circle_stroke(c, 4.0, Stroke::new(1.0, Color32::from_gray(110)));
-            } else if b.handled == b.total {
+            if b.handled == b.total {
                 painter.circle_filled(c, 4.0, ACCENT);
             } else if bw >= 16.0 {
                 painter.text(
