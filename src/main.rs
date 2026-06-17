@@ -991,10 +991,10 @@ impl App {
                 });
             egui::ComboBox::from_id_salt("min_stars")
                 .width(54.0)
-                .selected_text(format!("{}★", self.min_stars))
+                .selected_text(format!("{} ★", self.min_stars))
                 .show_ui(ui, |ui| {
                     for s in 0..=5u8 {
-                        ui.selectable_value(&mut self.min_stars, s, format!("{s}★"));
+                        ui.selectable_value(&mut self.min_stars, s, format!("{s} ★"));
                     }
                 });
 
@@ -1057,10 +1057,10 @@ impl App {
         // --- controls (standard widgets) -------------------------------------
         ui.horizontal(|ui| {
             egui::ComboBox::from_id_salt("tl_threshold")
-                .selected_text(format!("≥ {}★", self.threshold))
+                .selected_text(format!("≥ {} ★", self.threshold))
                 .show_ui(ui, |ui| {
                     for s in 1..=5u8 {
-                        ui.selectable_value(&mut self.threshold, s, format!("{s}★"));
+                        ui.selectable_value(&mut self.threshold, s, format!("{s} ★"));
                     }
                 });
             egui::ComboBox::from_id_salt("tl_bin")
