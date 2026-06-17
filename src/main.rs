@@ -401,7 +401,13 @@ impl App {
         if let Some(s) = set_star {
             let name = self.entries[self.current].name.clone();
             let prev = self.rating_at(self.current).stars;
-            self.edit_current(|r| r.stars = s);
+            // Rating an image implicitly un-rejects it (a keeper isn't a reject).
+            self.edit_current(|r| {
+                r.stars = s;
+                if s > 0 {
+                    r.reject = false;
+                }
+            });
             if s == 0 && prev > 0 {
                 self.notify(format!("Cleared rating · {name}"));
             }
@@ -883,7 +889,13 @@ impl App {
                 }
             }
             if let Some(s) = set_star {
-                self.edit_current(|r| r.stars = s);
+                // Rating an image implicitly un-rejects it.
+                self.edit_current(|r| {
+                    r.stars = s;
+                    if s > 0 {
+                        r.reject = false;
+                    }
+                });
             }
 
             ui.separator();
