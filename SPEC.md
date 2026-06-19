@@ -99,9 +99,19 @@ Concise, icon-first UI that stays out of the way. No animations.
 
 ## Finish / handoff
 
-- **Export keeper filename list:** write a `.csv` of basenames at/above a chosen
-  threshold, including the star rating per row (e.g. `IMG_1234.JPG,4`), used to
-  locate the corresponding RAWs on the SD card.
+Pick a destination folder; the app writes two deliverables for every keeper
+(image at/above the chosen threshold):
+
+- **Keeper list (`keepers.txt`):** one **stem** per line — basename without
+  extension (e.g. `IMG_1234`). No header, no rating column. Stems compose with
+  any RAW extension, so scripts append `.CR2`/`.NEF`/… to locate the matching
+  RAWs on the SD card.
+- **XMP sidecars (`<stem>.xmp`):** a minimal Lightroom/darktable-compatible
+  sidecar carrying the star rating (`xmp:Rating`). The RAW extension is unknown
+  here, so sidecars use the Lightroom basename form (`IMG_1234.xmp`), which
+  darktable also reads. Dropping a sidecar next to its RAW (same basename)
+  transfers the rating into darktable/Lightroom. **Export only** — we never read
+  XMP back.
 
 ## Folder scope
 
@@ -112,7 +122,8 @@ Concise, icon-first UI that stays out of the way. No animations.
 
 - RAW decoding / RAW handling of any kind.
 - Compare / side-by-side burst view.
-- Lightroom / Capture One / XMP interoperability.
+- Reading XMP / Lightroom / Capture One metadata back in (we *write* rating-only
+  XMP sidecars on export, but never import them).
 - Deleting or moving image files (reject is flag-only).
 - Subfolder recursion.
 - On-disk thumbnail cache or generated thumbnails.
@@ -120,5 +131,6 @@ Concise, icon-first UI that stays out of the way. No animations.
 ## Resolved details
 
 - Timeline bin granularity: user-configurable 5 / 10 / 15 minutes.
-- Export format: `.csv` with basename + star rating per row.
+- Export format: a destination folder holding `keepers.txt` (one stem per line)
+  + one `<stem>.xmp` rating sidecar per keeper.
 - Keybindings: defaults as listed above; trivially reconfigurable later.

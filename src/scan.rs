@@ -22,7 +22,10 @@ pub struct Entry {
 
 fn is_jpeg(path: &Path) -> bool {
     matches!(
-        path.extension().and_then(|e| e.to_str()).map(|e| e.to_ascii_lowercase()).as_deref(),
+        path.extension()
+            .and_then(|e| e.to_str())
+            .map(|e| e.to_ascii_lowercase())
+            .as_deref(),
         Some("jpg") | Some("jpeg")
     )
 }
@@ -43,9 +46,9 @@ fn read_exif_meta(path: &Path) -> (i64, u16) {
             let time = exif
                 .get_field(exif::Tag::DateTimeOriginal, exif::In::PRIMARY)
                 .and_then(|f| match &f.value {
-                    exif::Value::Ascii(vals) => {
-                        vals.first().map(|b| String::from_utf8_lossy(b).into_owned())
-                    }
+                    exif::Value::Ascii(vals) => vals
+                        .first()
+                        .map(|b| String::from_utf8_lossy(b).into_owned()),
                     _ => None,
                 })
                 .and_then(|raw| {
@@ -79,14 +82,18 @@ pub fn embedded_thumbnail(path: &Path) -> Option<Vec<u8>> {
         .value
         .get_uint(0)? as usize;
     let buf = exif.buf();
-    buf.get(offset..offset.checked_add(len)?).map(|s| s.to_vec())
+    buf.get(offset..offset.checked_add(len)?)
+        .map(|s| s.to_vec())
 }
 
 /// Parallel scan of one flat folder, chronological ascending. Mirrors the
 /// main app's `scan_folder`, returning native structs instead of JSON.
 pub fn scan_folder(folder: &Path) -> Vec<Entry> {
     let paths: Vec<PathBuf> = match fs::read_dir(folder) {
-        Ok(rd) => rd.filter_map(|e| e.ok().map(|e| e.path())).filter(|p| is_jpeg(p)).collect(),
+        Ok(rd) => rd
+            .filter_map(|e| e.ok().map(|e| e.path()))
+            .filter(|p| is_jpeg(p))
+            .collect(),
         Err(_) => return Vec::new(),
     };
 
@@ -95,7 +102,10 @@ pub fn scan_folder(folder: &Path) -> Vec<Entry> {
         .map(|p| {
             let (capture_time, orientation) = read_exif_meta(p);
             Entry {
-                name: p.file_name().map(|n| n.to_string_lossy().into_owned()).unwrap_or_default(),
+                name: p
+                    .file_name()
+                    .map(|n| n.to_string_lossy().into_owned())
+                    .unwrap_or_default(),
                 path: p.clone(),
                 capture_time,
                 orientation,
@@ -103,6 +113,10 @@ pub fn scan_folder(folder: &Path) -> Vec<Entry> {
         })
         .collect();
 
-    images.sort_by(|a, b| a.capture_time.cmp(&b.capture_time).then_with(|| a.name.cmp(&b.name)));
+    images.sort_by(|a, b| {
+        a.capture_time
+            .cmp(&b.capture_time)
+            .then_with(|| a.name.cmp(&b.name))
+    });
     images
 }

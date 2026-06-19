@@ -39,7 +39,11 @@ impl Loader {
         let (out_tx, out_rx) = channel::<Loaded>();
         let thumb_tx = spawn_pool(3, out_tx.clone(), Kind::Thumb);
         let full_tx = spawn_pool(2, out_tx, Kind::Full);
-        Loader { thumb_tx, full_tx, out_rx }
+        Loader {
+            thumb_tx,
+            full_tx,
+            out_rx,
+        }
     }
 
     pub fn request_thumb(&self, index: usize, path: PathBuf, orientation: u16) {
@@ -65,7 +69,9 @@ fn spawn_pool(n: usize, out_tx: Sender<Loaded>, kind: Kind) -> Sender<Job> {
                 let guard = job_rx.lock().unwrap();
                 guard.recv()
             };
-            let Ok((index, path, orientation)) = job else { break };
+            let Ok((index, path, orientation)) = job else {
+                break;
+            };
             let decoded = if is_thumb {
                 decode_thumb(&path, orientation)
             } else {

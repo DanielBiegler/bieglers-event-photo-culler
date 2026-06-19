@@ -22,7 +22,7 @@ All UI is immediate-mode egui rendered from `App` in `src/main.rs`. Modules:
 - `loader.rs` — two background decode pools (thumb + full) feeding finished `ColorImage`s to the UI thread; `apply_orientation` rotates/flips per the EXIF tag.
 - `model.rs` — `Rating`, `View`, filter enums, and the `passes` predicate.
 - `persist.rs` — `.cull.json` sidecar (atomic temp+rename, debounced) + resume config in the OS config dir.
-- `export.rs` — keeper CSV. `clipboard.rs` — copy image via arboard.
+- `export.rs` — keeper handoff: writes a chosen folder with `keepers.txt` (one stem per line, ≥ threshold) + one `<stem>.xmp` Lightroom/darktable sidecar per keeper carrying `xmp:Rating`. `clipboard.rs` — copy image via arboard.
 
 **Decode/memory model:** the loupe keeps a ±`WINDOW` sliding set of full-res GPU textures it explicitly evicts (`maintain_window`); the grid creates one small texture per embedded thumbnail on demand. Decoding happens off-thread; the UI uploads textures it owns — there is no disk cache.
 

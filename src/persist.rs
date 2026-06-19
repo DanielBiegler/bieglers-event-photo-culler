@@ -41,7 +41,10 @@ fn prune(ratings: &HashMap<String, Rating>) -> HashMap<String, Rating> {
 /// Atomically write the folder's `.cull.json` (temp file + rename), pruning
 /// blanks first. Cheap enough to call on a background thread.
 pub fn save_sidecar(folder: &Path, ratings: &HashMap<String, Rating>) -> std::io::Result<()> {
-    let sidecar = Sidecar { version: 1, files: prune(ratings) };
+    let sidecar = Sidecar {
+        version: 1,
+        files: prune(ratings),
+    };
     let json = serde_json::to_string(&sidecar).unwrap_or_else(|_| "{}".to_string());
     let target = folder.join(SIDECAR_NAME);
     let tmp = folder.join(".cull.json.tmp");
@@ -86,6 +89,7 @@ impl ResumeConfig {
 
     pub fn remember(&mut self, folder: &str, image: &str) {
         self.last_folder = Some(folder.to_string());
-        self.last_image.insert(folder.to_string(), image.to_string());
+        self.last_image
+            .insert(folder.to_string(), image.to_string());
     }
 }

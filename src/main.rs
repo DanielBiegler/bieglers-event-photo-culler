@@ -81,8 +81,8 @@ struct App {
     ratings: HashMap<String, Rating>,
     folder: Option<PathBuf>,
     config: ResumeConfig,
-    dirty: bool,            // ratings changed since the last save
-    last_change: Instant,   // when `dirty` was last set (drives the debounce)
+    dirty: bool,          // ratings changed since the last save
+    last_change: Instant, // when `dirty` was last set (drives the debounce)
 
     // Filters (apply to the grid + filter-aware navigation).
     min_stars: u8,
@@ -91,7 +91,7 @@ struct App {
     auto_advance: bool,
 
     bin_minutes: i64, // 5 / 10 / 15 — timeline-local control
-    threshold: u8,    // keeper threshold: timeline coverage + CSV export (independent of the view filter)
+    threshold: u8, // keeper threshold: timeline coverage + CSV export (independent of the view filter)
 
     current: usize, // index into the FULL entries list
     view: View,
@@ -182,18 +182,27 @@ impl App {
 
     /// Rating for an entry index (default when unrated).
     fn rating_at(&self, idx: usize) -> Rating {
-        self.entries.get(idx).and_then(|e| self.ratings.get(&e.name)).copied().unwrap_or_default()
+        self.entries
+            .get(idx)
+            .and_then(|e| self.ratings.get(&e.name))
+            .copied()
+            .unwrap_or_default()
     }
 
     /// Does entry `idx` pass the active filter?
     fn passes_idx(&self, idx: usize) -> bool {
-        let r = self.entries.get(idx).and_then(|e| self.ratings.get(&e.name));
+        let r = self
+            .entries
+            .get(idx)
+            .and_then(|e| self.ratings.get(&e.name));
         passes(r, self.min_stars, self.star_filter_mode, self.reject_filter)
     }
 
     /// Full-list indices currently shown by the filter (grid order).
     fn filtered_indices(&self) -> Vec<usize> {
-        (0..self.entries.len()).filter(|&i| self.passes_idx(i)).collect()
+        (0..self.entries.len())
+            .filter(|&i| self.passes_idx(i))
+            .collect()
     }
 
     /// Move `delta` steps through the FULL list, skipping filtered-out images
@@ -246,7 +255,8 @@ impl App {
             }
             if j >= 0 {
                 let prev_bin = bin_of(self.entries[j as usize].capture_time);
-                while j - 1 >= 0 && bin_of(self.entries[(j - 1) as usize].capture_time) == prev_bin {
+                while j - 1 >= 0 && bin_of(self.entries[(j - 1) as usize].capture_time) == prev_bin
+                {
                     j -= 1;
                 }
                 self.current = j as usize;
@@ -283,8 +293,18 @@ impl App {
                 self.view = View::Loupe;
                 self.zoom = false;
                 self.remember_position();
-                let label = if dir == 1 { "Next unrated" } else { "Prev unrated" };
-                self.notify(format!("{} · {} ({}/{})", label, self.entries[j].name, j + 1, n));
+                let label = if dir == 1 {
+                    "Next unrated"
+                } else {
+                    "Prev unrated"
+                };
+                self.notify(format!(
+                    "{} · {} ({}/{})",
+                    label,
+                    self.entries[j].name,
+                    j + 1,
+                    n
+                ));
                 return;
             }
         }
@@ -576,9 +596,11 @@ impl eframe::App for App {
         // Panel padding lives on the Frame, independent of the global spacing.
         let bar_frame = egui::Frame::side_top_panel(&ctx.style())
             .inner_margin(egui::Margin::symmetric(14.0, 10.0));
-        egui::TopBottomPanel::top("bar").frame(bar_frame).show(ctx, |ui| {
-            self.toolbar(ui);
-        });
+        egui::TopBottomPanel::top("bar")
+            .frame(bar_frame)
+            .show(ctx, |ui| {
+                self.toolbar(ui);
+            });
 
         // --------------------------- coverage timeline ------------------------
         // Bottom panel declared before the central panel so it reserves its
@@ -586,9 +608,11 @@ impl eframe::App for App {
         if !self.entries.is_empty() {
             let tl_frame = egui::Frame::side_top_panel(&ctx.style())
                 .inner_margin(egui::Margin::symmetric(14.0, 10.0));
-            egui::TopBottomPanel::bottom("timeline").frame(tl_frame).show(ctx, |ui| {
-                self.timeline(ui);
-            });
+            egui::TopBottomPanel::bottom("timeline")
+                .frame(tl_frame)
+                .show(ctx, |ui| {
+                    self.timeline(ui);
+                });
         }
 
         // Loupe HUD sits just above the timeline (added after it, so it stacks
@@ -596,9 +620,11 @@ impl eframe::App for App {
         if self.view == View::Loupe && !self.entries.is_empty() {
             let hud_frame = egui::Frame::side_top_panel(&ctx.style())
                 .inner_margin(egui::Margin::symmetric(14.0, 8.0));
-            egui::TopBottomPanel::bottom("loupe_hud").frame(hud_frame).show(ctx, |ui| {
-                self.loupe_hud(ui);
-            });
+            egui::TopBottomPanel::bottom("loupe_hud")
+                .frame(hud_frame)
+                .show(ctx, |ui| {
+                    self.loupe_hud(ui);
+                });
         }
 
         // ------------------------------ content -------------------------------
@@ -620,7 +646,11 @@ impl eframe::App for App {
         }
 
         // Transient bottom-left toast, fading out over its final 400ms.
-        let expired = self.toast.as_ref().map(|(_, t)| t.elapsed() >= TOAST_LIFE).unwrap_or(false);
+        let expired = self
+            .toast
+            .as_ref()
+            .map(|(_, t)| t.elapsed() >= TOAST_LIFE)
+            .unwrap_or(false);
         if expired {
             self.toast = None;
         }
@@ -635,7 +665,9 @@ impl eframe::App for App {
                     egui::Frame::popup(&ctx.style())
                         .fill(Color32::from_black_alpha((alpha as f32 * 0.9) as u8))
                         .show(ui, |ui| {
-                            ui.label(egui::RichText::new(text).color(Color32::from_white_alpha(alpha)));
+                            ui.label(
+                                egui::RichText::new(text).color(Color32::from_white_alpha(alpha)),
+                            );
                         });
                 });
             ctx.request_repaint(); // keep fading
@@ -671,7 +703,7 @@ impl App {
         // The grid renders the FILTERED list; cells map back to full indices.
         let filtered = self.filtered_indices();
         let spacing = 14.0; // gutter between thumbnail cells
-        // Make the real inter-cell gap match the gap used for the column math.
+                            // Make the real inter-cell gap match the gap used for the column math.
         ui.spacing_mut().item_spacing = Vec2::splat(spacing);
         let avail_w = ui.available_width();
         let cols = (((avail_w + spacing) / (CELL.x + spacing)).floor() as usize).max(1);
@@ -701,90 +733,84 @@ impl App {
         if let Some(offset) = scroll_to {
             area = area.vertical_scroll_offset(offset);
         }
-        area.show_rows(
-            ui,
-            CELL.y,
-            rows,
-            |ui, row_range| {
-                for row in row_range {
-                    ui.horizontal(|ui| {
-                        for col in 0..cols {
-                            let pos = row * cols + col;
-                            if pos >= filtered.len() {
-                                break;
-                            }
-                            let idx = filtered[pos];
-                            // Lazily request the thumbnail the first time the
-                            // cell scrolls into view (and only once).
-                            if !self.thumb_tex.contains_key(&idx)
-                                && self.thumb_requested.insert(idx)
-                            {
-                                let e = &self.entries[idx];
-                                self.loader.request_thumb(idx, e.path.clone(), e.orientation);
-                            }
-
-                            let (rect, resp) = ui.allocate_exact_size(CELL, Sense::click());
-                            let painter = ui.painter_at(rect);
-                            painter.rect_filled(rect, 2.0, Color32::from_gray(22));
-                            if let Some(tex) = self.thumb_tex.get(&idx) {
-                                paint_fit(&painter, tex, rect.shrink(2.0));
-                            } else {
-                                painter.text(
-                                    rect.center(),
-                                    egui::Align2::CENTER_CENTER,
-                                    "…",
-                                    egui::FontId::proportional(14.0),
-                                    Color32::DARK_GRAY,
-                                );
-                            }
-
-                            // Badges: dim + ban icon when rejected, star count.
-                            let r = self.rating_at(idx);
-                            if r.reject {
-                                painter.rect_filled(rect, 2.0, Color32::from_black_alpha(120));
-                                painter.text(
-                                    rect.right_top() + Vec2::new(-5.0, 5.0),
-                                    egui::Align2::RIGHT_TOP,
-                                    IC_REJECT,
-                                    egui::FontId::proportional(15.0),
-                                    Color32::from_rgb(230, 100, 100),
-                                );
-                            }
-                            if r.stars > 0 {
-                                painter.text(
-                                    rect.left_bottom() + Vec2::new(5.0, -4.0),
-                                    egui::Align2::LEFT_BOTTOM,
-                                    "★".repeat(r.stars as usize),
-                                    egui::FontId::proportional(12.0),
-                                    Color32::from_rgb(240, 200, 80),
-                                );
-                            }
-                            if idx == current {
-                                // `painter_at(rect)` clips to `rect`, and egui centers
-                                // the stroke on the edge — so an edge-aligned ring loses
-                                // its outer half to the clip and nearly vanishes. Inset
-                                // it so the full stroke stays inside and stays visible.
-                                let ring = rect.shrink(1.5);
-                                painter.rect_stroke(ring, 2.0, Stroke::new(3.0, ACCENT));
-                            }
-
-                            // Single-click selects (stay in grid); double-click
-                            // opens the loupe (mirrors the React grid).
-                            if resp.double_clicked() {
-                                self.current = idx;
-                                self.view = View::Loupe;
-                                self.zoom = false;
-                                self.pan = Vec2::ZERO;
-                                self.remember_position();
-                            } else if resp.clicked() {
-                                self.current = idx;
-                                self.remember_position();
-                            }
+        area.show_rows(ui, CELL.y, rows, |ui, row_range| {
+            for row in row_range {
+                ui.horizontal(|ui| {
+                    for col in 0..cols {
+                        let pos = row * cols + col;
+                        if pos >= filtered.len() {
+                            break;
                         }
-                    });
-                }
-            },
-        );
+                        let idx = filtered[pos];
+                        // Lazily request the thumbnail the first time the
+                        // cell scrolls into view (and only once).
+                        if !self.thumb_tex.contains_key(&idx) && self.thumb_requested.insert(idx) {
+                            let e = &self.entries[idx];
+                            self.loader
+                                .request_thumb(idx, e.path.clone(), e.orientation);
+                        }
+
+                        let (rect, resp) = ui.allocate_exact_size(CELL, Sense::click());
+                        let painter = ui.painter_at(rect);
+                        painter.rect_filled(rect, 2.0, Color32::from_gray(22));
+                        if let Some(tex) = self.thumb_tex.get(&idx) {
+                            paint_fit(&painter, tex, rect.shrink(2.0));
+                        } else {
+                            painter.text(
+                                rect.center(),
+                                egui::Align2::CENTER_CENTER,
+                                "…",
+                                egui::FontId::proportional(14.0),
+                                Color32::DARK_GRAY,
+                            );
+                        }
+
+                        // Badges: dim + ban icon when rejected, star count.
+                        let r = self.rating_at(idx);
+                        if r.reject {
+                            painter.rect_filled(rect, 2.0, Color32::from_black_alpha(120));
+                            painter.text(
+                                rect.right_top() + Vec2::new(-5.0, 5.0),
+                                egui::Align2::RIGHT_TOP,
+                                IC_REJECT,
+                                egui::FontId::proportional(15.0),
+                                Color32::from_rgb(230, 100, 100),
+                            );
+                        }
+                        if r.stars > 0 {
+                            painter.text(
+                                rect.left_bottom() + Vec2::new(5.0, -4.0),
+                                egui::Align2::LEFT_BOTTOM,
+                                "★".repeat(r.stars as usize),
+                                egui::FontId::proportional(12.0),
+                                Color32::from_rgb(240, 200, 80),
+                            );
+                        }
+                        if idx == current {
+                            // `painter_at(rect)` clips to `rect`, and egui centers
+                            // the stroke on the edge — so an edge-aligned ring loses
+                            // its outer half to the clip and nearly vanishes. Inset
+                            // it so the full stroke stays inside and stays visible.
+                            let ring = rect.shrink(1.5);
+                            painter.rect_stroke(ring, 2.0, Stroke::new(3.0, ACCENT));
+                        }
+
+                        // Single-click selects (stay in grid); double-click
+                        // opens the loupe (mirrors the React grid).
+                        if resp.double_clicked() {
+                            self.current = idx;
+                            self.view = View::Loupe;
+                            self.zoom = false;
+                            self.pan = Vec2::ZERO;
+                            self.remember_position();
+                        } else if resp.clicked() {
+                            self.current = idx;
+                            self.remember_position();
+                        }
+                    }
+                });
+            }
+        });
         // Remember what we showed so a *grid-internal* click doesn't re-trigger
         // the scroll next frame (only external changes should scroll).
         self.grid_prev_current = self.current;
@@ -804,9 +830,10 @@ impl App {
                 // up under the viewport center. ZOOM is over 100% (natural), so
                 // the offset scales by ZOOM / fit-scale. Ported from Loupe.tsx.
                 self.pan = Vec2::ZERO;
-                if let (Some(p), Some(tex)) =
-                    (resp.interact_pointer_pos(), self.full_tex.get(&self.current))
-                {
+                if let (Some(p), Some(tex)) = (
+                    resp.interact_pointer_pos(),
+                    self.full_tex.get(&self.current),
+                ) {
                     let [tw, th] = tex.size();
                     let s = (rect.width() / tw as f32).min(rect.height() / th as f32);
                     if s > 0.0 {
@@ -865,7 +892,12 @@ impl App {
         let reviewed = self
             .entries
             .iter()
-            .filter(|e| self.ratings.get(&e.name).map(|r| r.handled()).unwrap_or(false))
+            .filter(|e| {
+                self.ratings
+                    .get(&e.name)
+                    .map(|r| r.handled())
+                    .unwrap_or(false)
+            })
             .count();
         let pct = if total > 0 { reviewed * 100 / total } else { 0 };
 
@@ -899,16 +931,24 @@ impl App {
             }
 
             ui.separator();
-            let rj_col =
-                if rating.reject { Color32::from_rgb(220, 90, 90) } else { Color32::from_gray(90) };
+            let rj_col = if rating.reject {
+                Color32::from_rgb(220, 90, 90)
+            } else {
+                Color32::from_gray(90)
+            };
             let rj = egui::Label::new(egui::RichText::new(IC_REJECT).size(16.0).color(rj_col))
                 .sense(Sense::click());
             if ui.add(rj).on_hover_text("Reject (X)").clicked() {
                 self.edit_current(|r| r.reject = !r.reject);
             }
 
-            let z_col = if self.zoom { ACCENT } else { Color32::from_gray(90) };
-            let z = egui::Label::new(egui::RichText::new("1.5×").color(z_col)).sense(Sense::click());
+            let z_col = if self.zoom {
+                ACCENT
+            } else {
+                Color32::from_gray(90)
+            };
+            let z =
+                egui::Label::new(egui::RichText::new("1.5×").color(z_col)).sense(Sense::click());
             if ui.add(z).on_hover_text("Zoom (Q or click image)").clicked() {
                 self.zoom = !self.zoom;
                 self.pan = Vec2::ZERO;
@@ -921,7 +961,9 @@ impl App {
     }
 
     fn filtered_count(&self) -> usize {
-        (0..self.entries.len()).filter(|&i| self.passes_idx(i)).count()
+        (0..self.entries.len())
+            .filter(|&i| self.passes_idx(i))
+            .count()
     }
 
     /// Open the native folder picker on a background thread (it blocks).
@@ -933,20 +975,16 @@ impl App {
         });
     }
 
-    /// Pick a destination for the keeper CSV on a background thread.
+    /// Pick a destination folder for the keeper list + XMP sidecars on a
+    /// background thread (the dialog blocks).
     fn export_keepers(&mut self) {
-        let Some(folder) = self.folder.clone() else {
+        if self.folder.is_none() {
             return;
-        };
-        let default = format!(
-            "{}-keepers.csv",
-            folder.file_name().map(|n| n.to_string_lossy().to_string()).unwrap_or_default()
-        );
+        }
         let tx = self.dialog_tx.clone();
         self.dialogs_open += 1;
         std::thread::spawn(move || {
-            let dest =
-                rfd::FileDialog::new().set_file_name(default).add_filter("CSV", &["csv"]).save_file();
+            let dest = rfd::FileDialog::new().pick_folder();
             let _ = tx.send(DialogResult::Export(dest));
         });
     }
@@ -959,7 +997,10 @@ impl App {
             DialogResult::Open(None) => {}
             DialogResult::Export(Some(dest)) => {
                 match export::export_keepers(&dest, &self.entries, &self.ratings, self.threshold) {
-                    Ok(()) => self.notify(format!("Exported keepers ≥ {}★", self.threshold)),
+                    Ok(n) => self.notify(format!(
+                        "Exported {n} keepers ≥ {}★ (list + .xmp)",
+                        self.threshold
+                    )),
                     Err(e) => self.notify(format!("Export failed: {e}")),
                 }
             }
@@ -970,7 +1011,11 @@ impl App {
     fn toolbar(&mut self, ui: &mut egui::Ui) {
         let icon = |s: &str| egui::RichText::new(s).size(18.0);
         ui.horizontal(|ui| {
-            if ui.button(icon(IC_OPEN)).on_hover_text("Open folder").clicked() {
+            if ui
+                .button(icon(IC_OPEN))
+                .on_hover_text("Open folder")
+                .clicked()
+            {
                 self.open_folder_dialog();
             }
             let folder_name = self
@@ -1019,22 +1064,43 @@ impl App {
                 })
                 .show_ui(ui, |ui| {
                     ui.selectable_value(&mut self.reject_filter, RejectFilter::All, "All");
-                    ui.selectable_value(&mut self.reject_filter, RejectFilter::Hide, "Hide rejects");
-                    ui.selectable_value(&mut self.reject_filter, RejectFilter::Only, "Only rejects");
+                    ui.selectable_value(
+                        &mut self.reject_filter,
+                        RejectFilter::Hide,
+                        "Hide rejects",
+                    );
+                    ui.selectable_value(
+                        &mut self.reject_filter,
+                        RejectFilter::Only,
+                        "Only rejects",
+                    );
                 });
 
-            ui.checkbox(&mut self.auto_advance, "auto").on_hover_text("Auto-advance after rating");
+            ui.checkbox(&mut self.auto_advance, "auto")
+                .on_hover_text("Auto-advance after rating");
 
             // Right-aligned: counts + export + help.
             ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                if ui.button(icon(IC_HELP)).on_hover_text("Keyboard shortcuts (?)").clicked() {
+                if ui
+                    .button(icon(IC_HELP))
+                    .on_hover_text("Keyboard shortcuts (?)")
+                    .clicked()
+                {
                     self.show_help = !self.show_help;
                 }
-                if ui.button(icon(IC_EXPORT)).on_hover_text("Export keeper CSV").clicked() {
+                if ui
+                    .button(icon(IC_EXPORT))
+                    .on_hover_text("Export keepers (list + XMP sidecars)")
+                    .clicked()
+                {
                     self.export_keepers();
                 }
                 let total = self.entries.len();
-                let pos = if total > 0 { (self.current + 1).to_string() } else { "–".into() };
+                let pos = if total > 0 {
+                    (self.current + 1).to_string()
+                } else {
+                    "–".into()
+                };
                 ui.monospace(format!("{}  ·  {}/{}", pos, self.filtered_count(), total));
             });
         });
@@ -1047,13 +1113,16 @@ impl App {
             .resizable(false)
             .anchor(egui::Align2::CENTER_CENTER, Vec2::ZERO)
             .show(ctx, |ui| {
-                egui::Grid::new("shortcuts").num_columns(2).spacing([24.0, 6.0]).show(ui, |ui| {
-                    for (keys, desc) in SHORTCUTS {
-                        ui.monospace(*keys);
-                        ui.label(*desc);
-                        ui.end_row();
-                    }
-                });
+                egui::Grid::new("shortcuts")
+                    .num_columns(2)
+                    .spacing([24.0, 6.0])
+                    .show(ui, |ui| {
+                        for (keys, desc) in SHORTCUTS {
+                            ui.monospace(*keys);
+                            ui.label(*desc);
+                            ui.end_row();
+                        }
+                    });
                 ui.add_space(8.0);
                 if ui.button("Close").clicked() {
                     self.show_help = false;
@@ -1113,10 +1182,8 @@ impl App {
             .map(|e| (((e.capture_time - start) / bin_sec) as usize).min(count - 1));
 
         // --- paint ------------------------------------------------------------
-        let (rect, resp) = ui.allocate_exact_size(
-            Vec2::new(ui.available_width(), 96.0),
-            Sense::click(),
-        );
+        let (rect, resp) =
+            ui.allocate_exact_size(Vec2::new(ui.available_width(), 96.0), Sense::click());
         let painter = ui.painter_at(rect);
         let strip_h = 18.0;
         let strip_y = rect.top() + strip_h * 0.5;
@@ -1146,7 +1213,11 @@ impl App {
             painter.rect_filled(
                 track,
                 1.0,
-                if gap { Color32::from_rgb(74, 42, 42) } else { Color32::from_gray(58) },
+                if gap {
+                    Color32::from_rgb(74, 42, 42)
+                } else {
+                    Color32::from_gray(58)
+                },
             );
             if b.covered > 0 {
                 let fh = (b.covered as f32 / b.total as f32) * th;
@@ -1240,7 +1311,7 @@ fn setup_style(ctx: &egui::Context) {
     style.spacing.item_spacing = egui::vec2(10.0, 8.0);
     style.spacing.button_padding = egui::vec2(12.0, 8.0);
     style.spacing.interact_size.y = 30.0; // min clickable height → roomier rows
-    // A little rounding so the extra padding reads as deliberate, not accidental.
+                                          // A little rounding so the extra padding reads as deliberate, not accidental.
     let rounding = egui::Rounding::same(4.0);
     for w in [
         &mut style.visuals.widgets.inactive,
@@ -1269,7 +1340,11 @@ fn setup_fonts(ctx: &egui::Context) {
         egui::FontData::from_static(include_bytes!("../assets/lucide.ttf")),
     );
     for family in [egui::FontFamily::Proportional, egui::FontFamily::Monospace] {
-        fonts.families.entry(family).or_default().push("lucide".to_owned());
+        fonts
+            .families
+            .entry(family)
+            .or_default()
+            .push("lucide".to_owned());
     }
     ctx.set_fonts(fonts);
 }
